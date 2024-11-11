@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -111,6 +112,7 @@ func main() {
 func generateReport(results []parser.DeprecationResult, config *parser.JavadocConfig, cachedTime *time.Time, htmlFile string) error {
 	versionGroups := make(map[string]map[string][]templates.DeprecatedItem)
 	unknownVersionItems := []templates.DeprecatedItem{}
+	reportCache, err := cache.LoadCache("deprecations.json")
 
 	for _, result := range results {
 		if result.Error != nil {
@@ -179,6 +181,27 @@ func generateReport(results []parser.DeprecationResult, config *parser.JavadocCo
 	lastUpdated := time.Now().Unix()
 	if cachedTime != nil {
 		lastUpdated = cachedTime.Unix()
+	}
+
+	reportCache.Entries = nil
+
+	for _, group := range groups {
+		items := []string{}
+		for _, classGroup := range group.Classes {
+			for _, item := range classGroup.Items {
+				items = append(items, item.FullPath)
+			}
+		}
+		reportCache.Entries = append(reportCache.Entries, cache.CacheEntry{
+			Version:     group.Version,
+			Items:       items,
+			LastUpdated: time.Unix(lastUpdated, 0),
+		})
+	}
+
+	if err := reportCache.Save("deprecations.json"); err != nil {
+		log.Printf("Error saving cache: %v\n", err)
+		return err
 	}
 
 	report := templates.Report{
