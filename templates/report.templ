@@ -1,0 +1,399 @@
+package templates
+
+import (
+    "strconv"
+    "strings"
+    "time"
+    "github.com/thelooter/JavaDocParser/parser"
+)
+
+func isUpperCase(s string) bool {
+    return s == strings.ToUpper(s)
+}
+
+func formatJavadocURL(baseURL, version, fullPath string, isMethod bool) string {
+    // Split into parts
+    parts := strings.Split(fullPath, ".")
+    if len(parts) == 0 {
+        return ""
+    }
+
+    // Find package/class boundary by first uppercase letter
+    var packageParts []string
+    var classParts []string
+    inClass := false
+
+    for _, part := range parts {
+        if !inClass && (len(part) == 0 || (part[0] >= 'a' && part[0] <= 'z')) {
+            packageParts = append(packageParts, part)
+        } else {
+            inClass = true
+            classParts = append(classParts, part)
+        }
+    }
+
+    // Handle methods
+    if isMethod {
+        // Remove () from last part
+        methodName := strings.TrimSuffix(classParts[len(classParts)-1], "()")
+        // Remove method from class parts
+        classParts = classParts[:len(classParts)-1]
+        // Build URL
+        packagePath := strings.Join(packageParts, "/")
+        classPath := strings.Join(classParts, ".")
+        return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html#" + methodName + "()"
+    }
+
+    // Handle enum constants
+    if len(classParts) > 0 && isUpperCase(classParts[len(classParts)-1]) {
+        constant := classParts[len(classParts)-1]
+        // Remove constant from class parts
+        classParts = classParts[:len(classParts)-1]
+        // Build URL
+        packagePath := strings.Join(packageParts, "/")
+        classPath := strings.Join(classParts, ".")
+        return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html#" + constant
+    }
+
+    // Regular class or inner class
+    packagePath := strings.Join(packageParts, "/")
+    classPath := strings.Join(classParts, ".")
+    return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html"
+}
+
+type DeprecatedItem struct {
+    FullPath string
+    Name     string
+}
+
+type ClassGroup struct {
+    ClassName string
+    Items     []DeprecatedItem
+}
+
+type VersionGroup struct {
+    Version string
+    Classes []ClassGroup
+}
+
+type Report struct {
+    Groups      []VersionGroup
+    LastUpdated int64
+}
+
+func getTotalItems(groups []VersionGroup) int {
+	total := 0
+	for _, g := range groups {
+		for _, c := range g.Classes {
+			total += len(c.Items)
+		}
+	}
+	return total
+}
+
+func getLatestVersion(groups []VersionGroup) string {
+	if len(groups) > 0 {
+		return groups[0].Version
+	}
+	return "N/A"
+}
+
+
+
+templ ReportPage(data Report,c *parser.JavadocConfig) {
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Deprecation Report</title>
+        <style>
+            :root {
+                --primary: #1a73e8;
+                --primary-dark: #1557b0;
+                --surface: #ffffff;
+                --text: #1f1f1f;
+                --text-secondary: #595959;
+                --border: #e0e0e0;
+            }
+            
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                margin: 2rem auto;
+                max-width: 1200px;
+                padding: 0 1rem;
+                color: var(--text);
+                line-height: 1.5;
+                background: #f5f5f5;
+            }
+
+            .version-group {
+                margin: 1rem 0;
+            }
+
+            details {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 1rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            summary {
+                color: var(--primary-dark);
+                font-weight: 600;
+                cursor: pointer;
+                padding: 1rem;
+                border-radius: 4px;
+                outline: none;
+            }
+
+            summary:focus {
+                box-shadow: 0 0 0 2px var(--primary);
+            }
+
+            .class-group {
+                margin: 1rem 0;
+                padding: 1.5rem;
+                background: #fafafa;
+                border: 1px solid var(--border);
+                border-radius: 6px;
+            }
+
+            .class-name {
+                font-weight: 600;
+                color: var(--text);
+                margin-bottom: 1rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid var(--border);
+            }
+
+            .deprecation-list {
+                margin: 1rem 0;
+                padding: 0;
+                list-style: none;
+            }
+
+            .deprecation-item {
+                padding: 1rem;
+                margin: 0.5rem 0;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin: 2rem 0;
+            }
+
+            .stat-card {
+                background: var(--surface);
+                padding: 2rem;
+                border-radius: 8px;
+                text-align: center;
+                border: 1px solid var(--border);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .stat-number {
+                font-size: 2.5rem;
+                font-weight: 700;
+                color: var(--primary-dark);
+                margin-bottom: 0.75rem;
+            }
+
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 1rem;
+                font-weight: 500;
+            }
+
+            .version-count {
+                background: var(--primary-dark);
+                color: white;
+                padding: 0.5rem 1rem;
+                border-radius: 999px;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+
+            .version-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
+
+            .version-title {
+                font-size: 1.25rem;
+                color: var (--primary-dark);
+            }
+
+            .version-stats {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .deprecation-count {
+                background: var(--primary);
+                color: white;
+                padding: 0.25rem 0.75rem;
+                border-radius: 999px;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+
+            .class-count {
+                color: var (--text-secondary);
+                font-size: 0.875rem;
+                padding: 0.25rem 0.75rem;
+                background: var (--surface);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+            }
+
+            .description {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 1.5rem;
+                margin: 2rem 0;
+                line-height: 1.6;
+            }
+
+            .description h2 {
+                color: var(--primary-dark);
+                margin-top: 0;
+                margin-bottom: 1rem;
+                font-size: 1.5rem;
+            }
+
+            .description p {
+                color: var(--text-secondary);
+                margin: 0;
+            }
+
+            .description-limitations {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                border-top: 1px solid var(--border);
+            }
+
+            .description-limitations h3 {
+                color: var(--text);
+                font-size: 1.1rem;
+                margin: 0 0 0.75rem 0;
+            }
+
+            .description-limitations ul {
+                margin: 0;
+                padding-left: 1.5rem;
+                color: var(--text-secondary);
+            }
+
+            .description-limitations li {
+                margin: 0.5rem 0;
+            }
+            
+            .deprecation-item a {
+                color: var(--primary);
+                text-decoration: none;
+            }
+            
+            .deprecation-item a:hover {
+                text-decoration: underline;
+            }
+            
+            .class-name a {
+                color: var(--text);
+                text-decoration: none;
+            }
+            
+            .class-name a:hover {
+                color: var(--primary);
+            }
+            
+            .last-updated {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                text-align: right;
+                margin: 1rem 0;
+                font-style: italic;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Deprecation Report</h1>
+        <div class="last-updated">
+            Last updated: { time.Unix(data.LastUpdated, 0).Format("January 2, 2006 15:04 MST") }
+        </div>
+        <div class="description">
+            <h2>About This Report</h2>
+            <p>
+                This report provides a comprehensive overview of deprecated elements in the PaperMC API, organized by Minecraft version. 
+                Each version section shows deprecated classes, methods, and fields that were marked for removal in that version.
+                This helps developers track API changes and update their plugins accordingly.
+            </p>
+            <div class="description-limitations">
+                <h3>Limitations</h3>
+                <ul>
+                    <li>Methods that have already been removed in previous versions are not tracked</li>
+                    <li>Some deprecated elements may not show version information if it's not specified in the API documentation</li>
+                </ul>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{ strconv.Itoa(len(data.Groups)) }</div>
+                <div class="stat-label">Indexed Versions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{ strconv.Itoa(getTotalItems(data.Groups)) }</div>
+                <div class="stat-label">Total Deprecations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{ getLatestVersion(data.Groups) }</div>
+                <div class="stat-label">Latest Version</div>
+            </div>
+        </div>
+        for _, group := range data.Groups {
+            <div class="version-group">
+                <details>
+                    <summary style="list-style: none;">
+                        <div class="version-header">
+                            <span class="version-title">Version { group.Version }</span>
+                            <div class="version-stats">
+                                <span class="class-count">{ strconv.Itoa(len(group.Classes)) } classes</span>
+                                <span class="deprecation-count">{ strconv.Itoa(getTotalItems([]VersionGroup{group})) } deprecations</span>
+                            </div>
+                        </div>
+                    </summary>
+                    for _, classGroup := range group.Classes {
+                        <div class="class-group">
+                            <div class="class-name">
+                                <a href={ templ.URL(formatJavadocURL(c.BaseURL, c.Version, classGroup.ClassName, false)) }>
+                                    { classGroup.ClassName }
+                                </a>
+                            </div>
+                            <ul class="deprecation-list" style="list-style-type: none;">
+                                for _, item := range classGroup.Items {
+                                    <li class="deprecation-item">
+                                        <a href={ templ.URL(formatJavadocURL(c.BaseURL, c.Version, item.FullPath, strings.HasSuffix(item.FullPath, "()"))) }>
+                                            { item.Name }
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </details>
+            </div>
+        }
+    </body>
+    </html>
+}

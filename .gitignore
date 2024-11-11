@@ -1,0 +1,5 @@
+.idea
+out
+deprecations.html
+deprecations.json
+*_templ.go
