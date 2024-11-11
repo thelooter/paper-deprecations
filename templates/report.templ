@@ -42,7 +42,7 @@ func formatJavadocURL(baseURL, version, fullPath string, isMethod bool) string {
         classPath := strings.Join(classParts, ".")
         
         // Only add () if the method name doesn't already end with a closing parenthesis
-        if !strings.HasSuffix(methodName, ")") {
+        if (!strings.HasSuffix(methodName, ")")) {
             methodName = methodName + "()"
         }
         return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html#" + methodName
@@ -116,25 +116,33 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
         <title>Deprecation Report</title>
         <style>
             :root {
-                --primary: #7661d9;           /* Darker soft lavender */
-                --primary-dark: #5d49c6;      /* Even darker lavender */
-                --surface: #ffffff;
-                --text: #1f1f1f;
-                --text-secondary: #595959;
-                --border: #e0e0e0;
+                --primary: #8839ef;           /* Latte mauve */
+                --primary-dark: #8839ef;      /* Latte lavender */
+                --surface: #eff1f5;          /* Latte base */
+                --text: #4c4f69;             /* Latte text */
+                --text-secondary: #6c6f85;   /* Latte subtext0 */
+                --border: #ccd0da;          /* Latte surface0 */
+                --bg-color: #eff1f5;        /* Latte base */
+                --text-color: #4c4f69;      /* Latte text */
+                --link-color: #1e66f5;      /* Latte blue */
+                --details-bg: #e6e9ef;      /* Latte mantle */
+                --card-shadow: rgba(76, 79, 105, 0.2); /* Latte text with opacity */
+                --text-on-lavender: #E6E9EF;  /* Latte mantle */
             }
 
             [data-theme="dark"] {
-                --primary: #9683ec;          /* Darker lavender for dark mode */
-                --primary-dark: #7661d9;     /* Darker lavender for dark mode */
-                --surface: #161b22;
-                --text: #c9d1d9;
-                --text-secondary: #8b949e;
-                --border: #30363d;
-                --bg-color: #0d1117;
-                --text-color: #c9d1d9;
-                --link-color: #9683ec;       /* Match primary */
-                --details-bg: #161b22;
+                --primary: #ca9ee6;          /* Frappé mauve */
+                --primary-dark: #ca9ee6;     /* Frappé lavender */
+                --surface: #303446;          /* Frappé base */
+                --text: #c6d0f5;            /* Frappé text */
+                --text-secondary: #a5adce;   /* Frappé subtext0 */
+                --border: #414559;          /* Frappé surface0 */
+                --bg-color: #303446;        /* Frappé base */
+                --text-color: #c6d0f5;      /* Frappé text */
+                --link-color: #8caaee;      /* Frappé blue */
+                --details-bg: #292c3c;      /* Frappé mantle */
+                --card-shadow: rgba(198, 208, 245, 0.2); /* Frappé text with opacity */
+                --text-on-lavender: #232634; /* Frappé crust - better contrast */
             }
 
             body {
@@ -144,7 +152,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 padding: 0 1rem;
                 color: var(--text);
                 line-height: 1.5;
-                background: #f5f5f5;
+                background: var(--bg-color);
             }
 
             .version-group {
@@ -283,6 +291,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 font-weight: 700;
                 color: var(--primary-dark) !important;  /* Ensure color stays constant */
                 margin-bottom: 0.75rem;
+                color: var(--primary-dark) !important;
             }
 
             .stat-label {
@@ -339,6 +348,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 border-radius: 999px;
                 font-size: 0.875rem;
                 font-weight: 500;
+                color: var(--text-on-lavender) !important;
             }
 
             .class-count {
@@ -542,6 +552,14 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 border-radius: 999px;
                 font-size: 0.875rem;
                 font-weight: 500;
+                color: var(--text-on-lavender) !important;
+            }
+
+            h1 {
+                color: var(--text);
+                font-size: 2.5rem;
+                margin-bottom: 1.5rem;
+                font-weight: 600;
             }
         </style>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
