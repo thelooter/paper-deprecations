@@ -17,10 +17,15 @@ import (
 )
 
 func main() {
+	// Existing flags
 	useCached := flag.Bool("c", false, "Use cached data instead of fetching new data")
 	useCache2 := flag.Bool("cache", false, "Use cached data instead of fetching new data")
 	outputDir := flag.String("o", ".", "Directory to store generated files")
 	outputDir2 := flag.String("output-dir", ".", "Directory to store generated files")
+
+	// New HTML filename flags
+	htmlFile := flag.String("f", "deprecations.html", "HTML output filename")
+	htmlFile2 := flag.String("file", "deprecations.html", "HTML output filename")
 	flag.Parse()
 
 	// Combine short and long flags
@@ -28,6 +33,10 @@ func main() {
 	outDir := *outputDir
 	if *outputDir2 != "." {
 		outDir = *outputDir2
+	}
+	outFile := *htmlFile
+	if *htmlFile2 != "deprecations.html" {
+		outFile = *htmlFile2
 	}
 
 	// Create output directory
@@ -40,7 +49,7 @@ func main() {
 
 	// Update file paths
 	cacheFile := filepath.Join(outDir, "deprecations.json")
-	htmlFile := filepath.Join(outDir, "deprecations.html")
+	compositeHtmlFile := filepath.Join(outDir, outFile)
 
 	if config.UseCachedData {
 		// Try to load and use loadCache first
@@ -57,7 +66,7 @@ func main() {
 						})
 					}
 				}
-				if err := generateReport(results, config, &loadCache.Entries[0].LastUpdated, htmlFile); err != nil {
+				if err := generateReport(results, config, &loadCache.Entries[0].LastUpdated, compositeHtmlFile); err != nil {
 					fmt.Printf("Error generating report: %v\n", err)
 				}
 				return
@@ -86,7 +95,7 @@ func main() {
 	}
 
 	// Generate report
-	if err := generateReport(results, config, nil, htmlFile); err != nil {
+	if err := generateReport(results, config, nil, compositeHtmlFile); err != nil {
 		fmt.Printf("Error generating report: %v\n", err)
 	}
 }

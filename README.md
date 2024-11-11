@@ -2,7 +2,7 @@
 
 A tool to generate reports on deprecated elements in the PaperMC API across different Minecraft versions.
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/thelooter/JavaDocParser/gh-pages.yml?label=Build%20%26%20Deploy)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/thelooter/JavaDocParser/pages.yaml?label=Build%20%26%20Deploy)
 
 ## Description
 

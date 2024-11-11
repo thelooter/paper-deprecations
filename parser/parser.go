@@ -28,7 +28,7 @@ func (c *JavadocConfig) GetFullURL(path string) string {
 		path = "/" + path
 	}
 	url := fmt.Sprintf("%s/%s%s", c.BaseURL, c.Version, path)
-	fmt.Printf("Constructed URL: %s\n", url)
+	log.Printf("Constructed URL: %s\n", url)
 	return url
 }
 
@@ -102,7 +102,8 @@ func (c *JavadocConfig) ParseDeprecations(listHtml string) []DeprecationResult {
 			// Process only this worker's portion of matches
 			for j := start; j < end; j++ {
 				match := matches[j]
-				log.Printf("Worker %d processing item %d/%d: %s\n", workerID, j+1, len(matches), match[2])
+				workerItemCount := end - start
+				log.Printf("Worker %d processing item %d/%d: %s\n", workerID, j-start+1, workerItemCount, match[2])
 				result := c.processDeprecatedItem(match[1], match[2])
 				resultsChan <- result
 			}
