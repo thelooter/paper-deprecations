@@ -34,14 +34,18 @@ func formatJavadocURL(baseURL, version, fullPath string, isMethod bool) string {
 
     // Handle methods
     if isMethod {
-        // Remove () from last part
-        methodName := strings.TrimSuffix(classParts[len(classParts)-1], "()")
+        methodName := classParts[len(classParts)-1]
         // Remove method from class parts
         classParts = classParts[:len(classParts)-1]
         // Build URL
         packagePath := strings.Join(packageParts, "/")
         classPath := strings.Join(classParts, ".")
-        return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html#" + methodName + "()"
+        
+        // Only add () if the method name doesn't already end with a closing parenthesis
+        if (!strings.HasSuffix(methodName, ")")) {
+            methodName = methodName + "()"
+        }
+        return baseURL + "/" + version + "/" + packagePath + "/" + classPath + ".html#" + methodName
     }
 
     // Handle enum constants
@@ -98,6 +102,9 @@ func getLatestVersion(groups []VersionGroup) string {
 	return "N/A"
 }
 
+func hasMethodSignature(s string) bool {
+    return strings.HasSuffix(s, "()") || (strings.Contains(s, "(") && strings.HasSuffix(s, ")"))
+}
 
 
 templ ReportPage(data Report,c *parser.JavadocConfig) {
@@ -109,14 +116,35 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
         <title>Deprecation Report</title>
         <style>
             :root {
-                --primary: #1a73e8;
-                --primary-dark: #1557b0;
-                --surface: #ffffff;
-                --text: #1f1f1f;
-                --text-secondary: #595959;
-                --border: #e0e0e0;
+                --primary: #8839ef;           /* Latte mauve */
+                --primary-dark: #8839ef;      /* Latte lavender */
+                --surface: #eff1f5;          /* Latte base */
+                --text: #4c4f69;             /* Latte text */
+                --text-secondary: #6c6f85;   /* Latte subtext0 */
+                --border: #ccd0da;          /* Latte surface0 */
+                --bg-color: #eff1f5;        /* Latte base */
+                --text-color: #4c4f69;      /* Latte text */
+                --link-color: #1e66f5;      /* Latte blue */
+                --details-bg: #e6e9ef;      /* Latte mantle */
+                --card-shadow: rgba(76, 79, 105, 0.2); /* Latte text with opacity */
+                --text-on-lavender: #E6E9EF;  /* Latte mantle */
             }
-            
+
+            [data-theme="dark"] {
+                --primary: #ca9ee6;          /* Frappé mauve */
+                --primary-dark: #ca9ee6;     /* Frappé lavender */
+                --surface: #303446;          /* Frappé base */
+                --text: #c6d0f5;            /* Frappé text */
+                --text-secondary: #a5adce;   /* Frappé subtext0 */
+                --border: #414559;          /* Frappé surface0 */
+                --bg-color: #303446;        /* Frappé base */
+                --text-color: #c6d0f5;      /* Frappé text */
+                --link-color: #8caaee;      /* Frappé blue */
+                --details-bg: #292c3c;      /* Frappé mantle */
+                --card-shadow: rgba(198, 208, 245, 0.2); /* Frappé text with opacity */
+                --text-on-lavender: #232634; /* Frappé crust - better contrast */
+            }
+
             body {
                 font-family: system-ui, -apple-system, sans-serif;
                 margin: 2rem auto;
@@ -124,7 +152,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 padding: 0 1rem;
                 color: var(--text);
                 line-height: 1.5;
-                background: #f5f5f5;
+                background: var(--bg-color);
             }
 
             .version-group {
@@ -132,11 +160,63 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
             }
 
             details {
+                list-style: none;
                 background: var(--surface);
                 border: 1px solid var(--border);
                 border-radius: 8px;
                 padding: 1rem;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.3s ease;
+            }
+
+            @keyframes sweep-in {
+                0% {
+                    opacity: 0;
+                    list-style: none;
+                    transform: translateX(-10px);
+                }
+                100% {
+                    opacity: 1;
+                    list-style: none;
+                    transform: translateX(0);
+                }
+            }
+
+            @keyframes sweep-out {
+                0% {
+                    opacity: 1;
+                    list-style: none;
+                    transform: translateX(0);
+                }
+                100% {
+                    opacity: 0;
+                    list-style: none;
+                    transform: translateX(-10px);
+                }
+            }
+
+            details[open] summary ~ * {
+                list-style: none;
+                animation: sweep-in 0.3s ease-in-out forwards;
+            }
+
+            details:not([open]) summary ~ * {
+                list-style: none;
+                animation: sweep-out 0.3s ease-in-out forwards;
+            }
+
+            details > summary {
+                list-style: none;
+                transition: margin 0.3s ease;
+            }
+
+            details > summary::-webkit-details-marker,
+            details > summary::marker {
+                display: none;
+            }
+
+            .version-header::before {
+                display: none;
             }
 
             summary {
@@ -197,13 +277,21 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 text-align: center;
                 border: 1px solid var(--border);
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transform: scale(1);
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            .stat-card:hover {
+                transform: scale(1.02);
+                box-shadow: 0 4px 8px var(--card-shadow);
             }
 
             .stat-number {
                 font-size: 2.5rem;
                 font-weight: 700;
-                color: var(--primary-dark);
+                color: var(--primary-dark) !important;  /* Ensure color stays constant */
                 margin-bottom: 0.75rem;
+                color: var(--primary-dark) !important;
             }
 
             .stat-label {
@@ -223,9 +311,22 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
 
             .version-header {
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
-                width: 100%;
+                gap: 0.75rem;
+            }
+
+            .version-header::before {
+                content: '\f054'; /* FontAwesome chevron-right */
+                font-family: 'Font Awesome 6 Free';
+                font-weight: 900;
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                display: inline-block;
+                transition: transform 0.3s ease;
+            }
+
+            details[open] .version-header::before {
+                transform: rotate(90deg);
             }
 
             .version-title {
@@ -235,8 +336,9 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
 
             .version-stats {
                 display: flex;
+                gap: 0.75rem;
+                margin-left: auto; /* Push to right */
                 align-items: center;
-                gap: 1rem;
             }
 
             .deprecation-count {
@@ -246,6 +348,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 border-radius: 999px;
                 font-size: 0.875rem;
                 font-weight: 500;
+                color: var(--text-on-lavender) !important;
             }
 
             .class-count {
@@ -253,7 +356,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 font-size: 0.875rem;
                 padding: 0.25rem 0.75rem;
                 background: var (--surface);
-                border: 1px solid var(--border);
+                border: 1px solid var (--border);
                 border-radius: 999px;
             }
 
@@ -299,25 +402,25 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
             .description-limitations li {
                 margin: 0.5rem 0;
             }
-            
+
             .deprecation-item a {
                 color: var(--primary);
                 text-decoration: none;
             }
-            
+
             .deprecation-item a:hover {
                 text-decoration: underline;
             }
-            
+
             .class-name a {
-                color: var(--text);
+                color: var (--text);
                 text-decoration: none;
             }
-            
+
             .class-name a:hover {
                 color: var(--primary);
             }
-            
+
             .last-updated {
                 color: var(--text-secondary);
                 font-size: 0.875rem;
@@ -325,17 +428,154 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 margin: 1rem 0;
                 font-style: italic;
             }
+
+            :root {
+                --bg-color: #ffffff;
+                --text-color: #000000;
+                --details-bg: #f6f8fa;
+            }
+
+            [data-theme="dark"] {
+                --bg-color: #0d1117;
+                --text-color: #c9d1d9;
+                --details-bg: #161b22;
+            }
+
+            body {
+                background-color: var(--bg-color);
+                color: var(--text-color);
+            }
+
+            a {
+                color: var(--link-color);
+            }
+
+            .class-group {
+                background-color: var(--details-bg);
+            }
+
+            #theme-toggle {
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                border: 1px solid var(--text-color);
+                background: var(--bg-color);
+                color: var(--text-color);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                transition: background 0.3s, color 0.3s;
+            }
+
+            #theme-toggle:hover {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
+
+            #theme-toggle i {
+                font-size: 1.2rem;
+            }
+
+            footer {
+                margin-top: 4rem;
+                padding: 2rem 0;
+                text-align: center;
+                border-top: 1px solid var(--border);
+                color: var(--text-secondary);
+            }
+
+            footer a {
+                color: var(--primary);
+                text-decoration: none;
+            }
+
+            footer a:hover {
+                text-decoration: underline;
+                color: var(--primary-dark);
+            }
+
+            #back-to-top {
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                background: var(--primary);
+                color: white;
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                border: none;
+                cursor: pointer;
+                opacity: 0;
+                transition: opacity 0.3s, background 0.3s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            }
+
+            #back-to-top:hover {
+                background: var(--primary-dark);
+            }
+
+            #back-to-top.visible {
+                opacity: 1;
+            }
+
+            .version-group details {
+                transform: scale(1);
+                transition: transform 0.2s ease;
+            }
+
+            .version-group details:hover {
+                transform: scale(1.005);
+            }
+
+            #theme-toggle i {
+                font-size: 1.2rem;
+            }
+    
+            #back-to-top i {
+                font-size: 1.3rem;
+            }
+
+            .deprecation-count {
+                background: var(--primary-dark);
+                color: white;
+                padding: 0.5rem 1rem;
+                border-radius: 999px;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: var(--text-on-lavender) !important;
+            }
+
+            h1 {
+                color: var(--text);
+                font-size: 2.5rem;
+                margin-bottom: 1.5rem;
+                font-weight: 600;
+            }
         </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     </head>
     <body>
-        <h1>PaperMC Deprecation Report</h1>
+        <button id="theme-toggle">
+            <i class="fas fa-moon"></i>
+        </button>
+        <h1 aria-label="PaperMC Deprecation report">PaperMC Deprecation Report</h1>
         <div class="last-updated">
             Last updated: { time.Unix(data.LastUpdated, 0).Format("January 2, 2006 15:04 MST") }
         </div>
         <div class="description">
             <h2>About This Report</h2>
             <p>
-                This report provides a comprehensive overview of deprecated elements in the PaperMC API, organized by Minecraft version. 
+                This report provides a comprehensive overview of deprecated elements in the PaperMC API, organized by Minecraft version.
                 Each version section shows deprecated classes, methods, and fields that were marked for removal in that version.
                 This helps developers track API changes and update their plugins accordingly.
             </p>
@@ -383,7 +623,7 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                             <ul class="deprecation-list" style="list-style-type: none;">
                                 for _, item := range classGroup.Items {
                                     <li class="deprecation-item">
-                                        <a href={ templ.URL(formatJavadocURL(c.BaseURL, c.Version, item.FullPath, strings.HasSuffix(item.FullPath, "()"))) }>
+                                        <a href={ templ.URL(formatJavadocURL(c.BaseURL, c.Version, item.FullPath, hasMethodSignature(item.FullPath))) }>
                                             { item.Name }
                                         </a>
                                     </li>
@@ -394,6 +634,101 @@ templ ReportPage(data Report,c *parser.JavadocConfig) {
                 </details>
             </div>
         }
+        <button id="back-to-top" title="Back to top">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        <script>
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = themeToggle.querySelector('i');
+    
+            function updateThemeIcon(isDark) {
+                themeIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+    
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function setTheme(isDark) {
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                updateThemeIcon(isDark);
+            }
+
+            // Set initial theme
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                setTheme(savedTheme === 'dark');
+            } else {
+                setTheme(prefersDark.matches);
+            }
+
+            // Handle toggle button click
+            themeToggle.addEventListener('click', () => {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                setTheme(!isDark);
+            });
+
+            // Handle system theme changes
+            prefersDark.addEventListener('change', (e) => {
+                setTheme(e.matches);
+            });
+
+            const backToTop = document.getElementById('back-to-top');
+
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    backToTop.classList.add('visible');
+                } else {
+                    backToTop.classList.remove('visible');
+                }
+            });
+
+            backToTop.addEventListener('click', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+
+            function animateNumber(element, target, duration = 500) {
+                const start = 0;
+                const startTime = performance.now();
+                
+                const easeOut = (t) => 1 - Math.pow(1 - t, 2); // Quadratic easing out
+                
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    const current = target * easeOut(progress);
+                    
+                    element.textContent = Math.round(current);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        element.textContent = Math.round(target);
+                    }
+                };
+                
+                requestAnimationFrame(animate);
+            }
+
+            // Initialize animations when page loads
+            document.addEventListener('DOMContentLoaded', () => {
+                const statNumbers = document.querySelectorAll('.stat-number');
+                // Only animate first two stat numbers
+                statNumbers.forEach((stat, index) => {
+                    if (index < 2) { // Only first two stats
+                        const target = parseInt(stat.textContent);
+                        stat.textContent = '0';
+                        animateNumber(stat, target);
+                    }
+                });
+            });
+        </script>
+        <footer>
+            Built with ❤️ by <a href="https://github.com/thelooter" target="_blank" rel="noopener noreferrer">thelooter</a>
+        </footer>
     </body>
     </html>
 }
