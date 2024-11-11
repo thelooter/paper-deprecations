@@ -110,34 +110,28 @@ func main() {
 // htmlFile: path to the output HTML file.
 func generateReport(results []parser.DeprecationResult, config *parser.JavadocConfig, cachedTime *time.Time, htmlFile string) error {
 	versionGroups := make(map[string]map[string][]templates.DeprecatedItem)
-	unknownVersionItems := make(map[string][]templates.DeprecatedItem)
+	unknownVersionItems := []templates.DeprecatedItem{}
 
 	for _, result := range results {
 		if result.Error != nil {
-			// Extract class name for unknown version items
-			className := getClassPath(result.Item)
-			unknownVersionItems[className] = append(
-				unknownVersionItems[className],
-				templates.DeprecatedItem{
-					FullPath: result.Item,
-					Name:     result.Item,
-				},
-			)
+			unknownVersionItems = append(unknownVersionItems, templates.DeprecatedItem{
+				FullPath: result.Item,
+				Name:     result.Item,
+			})
 			continue
 		}
 
-		// Handle known version items as before
+		// Initialize version map if not exists
 		if _, ok := versionGroups[result.Version]; !ok {
 			versionGroups[result.Version] = make(map[string][]templates.DeprecatedItem)
 		}
-		className := getClassPath(result.Item)
-		versionGroups[result.Version][className] = append(
-			versionGroups[result.Version][className],
-			templates.DeprecatedItem{
-				FullPath: result.Item,
-				Name:     result.Item,
-			},
-		)
+
+		// Group by class within each version
+		classPath := getClassPath(result.Item)
+		versionGroups[result.Version][classPath] = append(versionGroups[result.Version][classPath], templates.DeprecatedItem{
+			FullPath: result.Item,
+			Name:     result.Item,
+		})
 	}
 
 	// Process known versions
@@ -152,13 +146,19 @@ func generateReport(results []parser.DeprecationResult, config *parser.JavadocCo
 	})
 
 	for _, version := range versions {
-		classGroups := make([]templates.ClassGroup, 0)
+		var classGroups []templates.ClassGroup
 		for className, items := range versionGroups[version] {
 			classGroups = append(classGroups, templates.ClassGroup{
 				ClassName: className,
 				Items:     items,
 			})
 		}
+
+		// Sort class groups by class name
+		sort.Slice(classGroups, func(i, j int) bool {
+			return classGroups[i].ClassName < classGroups[j].ClassName
+		})
+
 		groups = append(groups, templates.VersionGroup{
 			Version: version,
 			Classes: classGroups,
@@ -167,16 +167,12 @@ func generateReport(results []parser.DeprecationResult, config *parser.JavadocCo
 
 	// Add unknown version group if there are any
 	if len(unknownVersionItems) > 0 {
-		unknownClassGroups := make([]templates.ClassGroup, 0)
-		for className, items := range unknownVersionItems {
-			unknownClassGroups = append(unknownClassGroups, templates.ClassGroup{
-				ClassName: className,
-				Items:     items,
-			})
-		}
 		groups = append(groups, templates.VersionGroup{
 			Version: "Unknown Version",
-			Classes: unknownClassGroups,
+			Classes: []templates.ClassGroup{{
+				ClassName: "Unknown Class",
+				Items:     unknownVersionItems,
+			}},
 		})
 	}
 
