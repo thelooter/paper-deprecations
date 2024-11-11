@@ -23,9 +23,11 @@ func main() {
 	outputDir := flag.String("o", ".", "Directory to store generated files")
 	outputDir2 := flag.String("output-dir", ".", "Directory to store generated files")
 
-	// New HTML filename flags
-	htmlFile := flag.String("f", "deprecations.html", "HTML output filename")
-	htmlFile2 := flag.String("file", "deprecations.html", "HTML output filename")
+	const defaultHtmlFile = "deprecations.html"
+
+	// HTML filename flags (-f, --file)
+	htmlFile := flag.String("f", defaultHtmlFile, "HTML output filename (short)")
+	htmlFileLong := flag.String("file", defaultHtmlFile, "HTML output filename (long)")
 	flag.Parse()
 
 	// Combine short and long flags
@@ -35,8 +37,8 @@ func main() {
 		outDir = *outputDir2
 	}
 	outFile := *htmlFile
-	if *htmlFile2 != "deprecations.html" {
-		outFile = *htmlFile2
+	if *htmlFileLong != "deprecations.html" {
+		outFile = *htmlFileLong
 	}
 
 	// Create output directory
