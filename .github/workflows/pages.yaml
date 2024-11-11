@@ -4,6 +4,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -36,7 +38,7 @@ jobs:
         run: go build -o JavaDocParser -v ./cmd/main.go
 
       - name: Generate website
-        run: ./JavaDocParser --output-dir _site
+        run: ./JavaDocParser -o _site -f index.html 
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -44,6 +46,7 @@ jobs:
           path: _site
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
